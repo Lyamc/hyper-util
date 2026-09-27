@@ -899,7 +899,14 @@ fn connect(
             target_os = "watchos",
         ))]
         {
-            let idx = unsafe { libc::if_nametoindex(interface.as_ptr()) };
+            // Declared here so this crate does not depend on the libc crate.
+            // `if_nametoindex` lives in libSystem / libc and returns 0 on failure.
+            let idx = unsafe {
+                unsafe extern "C" {
+                    fn if_nametoindex(ifname: *const std::ffi::c_char) -> u32;
+                }
+                if_nametoindex(interface.as_ptr())
+            };
             let idx = std::num::NonZeroU32::new(idx).ok_or_else(|| {
                 // If the index is 0, check errno and return an I/O error.
                 ConnectError::new(
